@@ -53,14 +53,16 @@ jobs:
         run: |
           npm run db:seed
 
-      - name: Start dev server
+      - name: Build and start server (production)
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
           DIRECT_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+          PORT: 3000
         run: |
-          nohup npm run dev &
-          # wait for server to start
-          for i in {1..30}; do
+          npm run build
+          nohup npm run start &
+          # wait for server to start (give build+start up to 60s)
+          for i in {1..60}; do
             if curl -sSf http://127.0.0.1:3000/ >/dev/null; then
               echo "server up" && break
             fi
