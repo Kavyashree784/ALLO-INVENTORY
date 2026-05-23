@@ -1,0 +1,99 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT
+// ─────────────────────────────────────────────
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory Inventory[]
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────
+// WAREHOUSE
+// ─────────────────────────────────────────────
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventory Inventory[]
+
+  @@map("warehouses")
+}
+
+// ─────────────────────────────────────────────
+// INVENTORY  (product × warehouse stock levels)
+// ─────────────────────────────────────────────
+model Inventory {
+  id String @id @default(cuid())
+
+  productId   String
+  warehouseId String
+
+  totalQuantity    Int @default(0)
+  reservedQuantity Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@map("inventory")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  RELEASED
+}
+
+model Reservation {
+  id String @id @default(cuid())
+
+  inventoryId String
+  quantity    Int
+
+  status      ReservationStatus @default(PENDING)
+
+  expiresAt DateTime
+
+  idempotencyKey String?   @unique
+  confirmedAt    DateTime?
+  releasedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Restrict)
+
+  @@index([inventoryId, status])
+  @@index([status, expiresAt])
+  @@index([inventoryId, expiresAt])
+  @@map("reservations")
+}
