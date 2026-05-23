@@ -1,0 +1,75 @@
+name: Concurrency Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  concurrency-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..15}; do
+            pg_isready -h localhost -p 5432 -U postgres && break || sleep 2;
+          done
+
+      - name: Install dependencies
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+        run: |
+          npm ci
+          npx prisma generate
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+        run: |
+          npm run db:migrate
+
+      - name: Seed database
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+          DIRECT_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+        run: |
+          npm run db:seed
+
+      - name: Start dev server
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+          DIRECT_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+        run: |
+          nohup npm run dev &
+          # wait for server to start
+          for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:3000/ >/dev/null; then
+              echo "server up" && break
+            fi
+            sleep 1
+          done
+
+      - name: Run concurrency test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+          DIRECT_URL: postgres://postgres:postgres@localhost:5432/postgres?schema=public
+        run: |
+          npm run test:concurrency
