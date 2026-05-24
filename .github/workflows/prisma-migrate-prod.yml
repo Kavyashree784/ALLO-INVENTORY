@@ -28,6 +28,9 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: npm ci
 
       - name: Generate Prisma client
