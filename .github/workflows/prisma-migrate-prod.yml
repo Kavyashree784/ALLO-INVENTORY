@@ -33,9 +33,6 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-
       - name: Apply migrations (via script)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
