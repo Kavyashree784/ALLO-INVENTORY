@@ -1,62 +1,43 @@
 # Allo Inventory
 
-Allo Inventory is a concurrency-safe inventory reservation system for multi-warehouse retail. It demonstrates how to prevent overselling under heavy concurrent checkout traffic using PostgreSQL row locks, transactional state transitions, and idempotent reservation creation.
+Allo Inventory is a focused demo of concurrency-safe inventory reservation for multi-warehouse retail. It is intentionally small and engineered to demonstrate practical techniques that prevent overselling under concurrent traffic: targeted row locking, atomic transactions, clear lifecycle transitions, and idempotent client behavior.
 
-The application is built with Next.js App Router, Prisma, PostgreSQL, TanStack Query, Zod, Tailwind CSS, and shadcn-style primitives.
+Tech stack: Next.js (App Router), TypeScript, Prisma, PostgreSQL, TanStack Query (React Query), Zod, Tailwind CSS, and shadcn-style UI primitives.
 
-## Project Overview
+## Project overview
 
-The system models a catalog of products stocked across warehouses. A user selects a product, chooses a warehouse, and creates a temporary reservation that removes stock from availability for a bounded time window. The user can then confirm payment or cancel the hold. Expired holds are reclaimed automatically.
+This repo models an inventory reservation system where each product may have stock across multiple warehouses. The primary user flow is:
 
-The goal of the project is not just to work in the happy path, but to remain correct when several users attempt to reserve the last unit at the same time.
+- create a short-lived reservation (hold) on a single warehouse inventory row
+- confirm the reservation to finalize the sale
+- release the reservation to return stock to availability
+- automated cleanup reclaims expired holds
 
-## Architecture Decisions
+The core objective is correctness under concurrency: the system prevents overselling by keeping the check-and-update critical section small and protected by the database.
 
-### Single-warehouse reservations
+## Architecture decisions (summary)
 
-Each reservation is tied to exactly one inventory row, which represents one product in one warehouse. This keeps the locking scope small and deterministic:
+Key constraints that guided the design:
 
-- one reservation touches one inventory row
-- one lock protects the availability check and the stock mutation
-- the database can serialize competing requests without complex allocation logic
+- Keep the concurrency boundary small: one reservation locks one inventory row (product + warehouse). This minimizes contention and makes correctness easy to reason about.
+- Use database transactions to perform the availability check and stock mutation atomically.
+- Provide idempotency for reservation creation so clients can safely retry without creating duplicates.
 
-This design was chosen over split allocations across multiple warehouses because split allocation introduces additional coordination, harder rollback logic, and a much larger race-condition surface.
+Why this shape?
 
-### Why naive reservation logic fails
+- Multi-warehouse split allocations increase complexity and rollback surface area; the single-row allocation keeps the critical path trivial to lock.
+- Row-level locking (SELECT ... FOR UPDATE) provides the necessary serialization with minimal operational overhead.
 
-A naive implementation usually does this:
-
-1. read available stock
-2. verify enough stock exists
-3. write the reservation
-4. decrement inventory
-
-That is unsafe under concurrency. Two requests can both read the same available quantity before either writes anything. If there is one unit left, both may succeed and oversell the item.
-
-The fix is not to make the read faster. The fix is to make the check-and-update atomic from the perspective of concurrent transactions.
-
-### Concurrency strategy
-
-The reservation service uses:
-
-- PostgreSQL row-level locking with `SELECT ... FOR UPDATE`
-- Prisma transactions for atomic state transitions
-- atomic `increment` and `decrement` updates on inventory counters
-- idempotency keys for safe client retries
-
-Serializable transactions and advisory locks are not used. They are not required for this design because the inventory row lock is the actual concurrency boundary.
-
-## Architecture Diagram
+## Architecture diagram
 
 ```mermaid
 flowchart LR
-  UI[Next.js UI] --> API[App Router API]
+  UI[Next.js UI] -->|React Query| API[App Router API]
   API --> SVC[Reservation Service]
   SVC --> TX[Prisma Transaction]
-  TX --> LOCK[SELECT ... FOR UPDATE on Inventory]
+  TX --> LOCK[SELECT ... FOR UPDATE on inventory row]
   TX --> DB[(PostgreSQL)]
-  UI -->|React Query| API
-  CRON[Vercel Cron] --> API2[/api/reservations/cleanup/]
+  CRON[Vercel Cron] --> API2[/api/reservations/cleanup]
   API2 --> SVC
 ```
 
@@ -179,162 +160,102 @@ Serializable isolation would also work, but it would add more complexity and mor
 
 Advisory locks are unnecessary because the row itself is the shared resource being protected.
 
-## Reservation Lifecycle
 
-The reservation state machine is:
+## Reservation lifecycle
 
-1. `PENDING` - hold exists and stock is reserved
-2. `CONFIRMED` - payment succeeded and the hold becomes permanent
-3. `RELEASED` - hold was manually canceled or expired and stock was returned
+States:
 
-### Lifecycle behavior
+- PENDING — temporary hold, inventory reserved
+- CONFIRMED — payment captured, stock finalized
+- RELEASED — hold canceled or reclaimed
 
-- Create reservation: `PENDING`
-- Confirm reservation: transitions `PENDING` -> `CONFIRMED`
-- Release reservation: transitions `PENDING` -> `RELEASED`
-- Expiry cleanup: transitions stale `PENDING` -> `RELEASED`
+Transitions:
 
-## Expiry Strategy
+- Create -> PENDING
+- PENDING -> CONFIRMED (confirm action)
+- PENDING -> RELEASED (manual release or expiry cleanup)
 
-Reservations have a TTL controlled by `RESERVATION_TTL_MINUTES`.
+Expiry handling is defensive: mutation endpoints reject confirms for expired holds (HTTP 410) and a background cleanup job reclaims stale PENDING reservations in batches.
 
-Expiry is handled in two ways:
 
-- **Lazy expiry** - mutation and detail paths check expiry and reject stale confirmation attempts with `410 Gone`
-- **Cleanup expiry** - the cleanup route reclaims expired reservations in batch
+## Expiry strategy
 
-The lazy path keeps the system correct even if the cleanup job is delayed.
+Configuration:
 
-## Cron Cleanup Strategy
+- `RESERVATION_TTL_MINUTES` controls hold lifetime.
 
-The cleanup endpoint is exposed at `/api/reservations/cleanup` and is scheduled by Vercel Cron in [vercel.json](vercel.json).
+Mechanics:
 
-The route:
+- Lazy expiry: all mutating endpoints (confirm/release) verify reservation expiry and return `410 Gone` if stale. This prevents a client from confirming an already-expired hold.
+- Cleanup job: the `/api/reservations/cleanup` route finds stale PENDING reservations, locks affected inventory rows, and transitions them to RELEASED while decrementing reserved counters.
 
-- finds inventories with stale pending reservations
-- locks each affected inventory row
-- marks expired reservations as `RELEASED`
-- decrements `reservedQuantity` accordingly
+This two-layer approach ensures correctness even if cron runs are delayed or missed.
 
-This keeps inventory counters aligned even for holds that expire without user action.
+
+## Cron cleanup
+
+The cleanup route reclaims expired holds and should be scheduled (Vercel Cron, server cron, or similar). It performs batched work and locks each affected inventory row to ensure counter consistency.
+
 
 ## Idempotency
 
-Idempotency is implemented for `POST /api/reservations` using the `Idempotency-Key` header.
+Reservation creation honors the `Idempotency-Key` header. Retries with the same key return the original reservation if the payload matches. If the key is reused for a different intent, the API returns `409 Conflict`.
 
-If the same key is retried:
+## API overview
 
-- the existing reservation is returned if the request body matches the original reservation intent
-- a `409 Conflict` is returned if the same key is reused for a different reservation request
+All API routes are under `/api`. Key endpoints:
 
-This protects clients from creating duplicate reservations when they retry after a timeout or transient network error.
-
-## API Endpoints
-
-### `GET /api/products`
-
-Returns all products with per-warehouse inventory and derived availability.
-
-Response shape:
-
-```json
-{
-  "success": true,
-  "data": {
-    "products": [],
-    "warehouses": []
-  }
-}
-```
-
-### `GET /api/warehouses`
-
-Returns all warehouses.
-
-### `POST /api/reservations`
-
-Creates a reservation.
-
-Request body:
-
-```json
-{
-  "productId": "prod_alpha",
-  "warehouseId": "wh_east",
-  "quantity": 2
-}
-```
-
-Optional header:
-
-```text
-Idempotency-Key: <uuid>
-```
+### POST /api/reservations
+Create a reservation. Use `Idempotency-Key` header to protect retries.
 
 Responses:
+- `201 Created` — reservation created
+- `409 Conflict` — insufficient stock or idempotency key misuse
+- `404 Not Found` — inventory row not found
 
-- `201 Created` on success
-- `409 Conflict` when stock is insufficient or the idempotency key is reused incorrectly
-- `404 Not Found` when the requested inventory row does not exist
+### POST /api/reservations/:id/confirm
+Confirm a PENDING reservation. Returns `410 Gone` if expired.
 
-### `GET /api/reservations/:id`
+### POST /api/reservations/:id/release
+Release a PENDING reservation. This is idempotent.
 
-Returns reservation details for the reservation workspace page.
+### GET /api/reservations/:id
+Fetch reservation details for the reservation workspace.
 
-### `POST /api/reservations/:id/confirm`
+### GET /api/reservations/cleanup
+Run the expiry cleanup job (GET and POST supported for convenience).
 
-Confirms an active reservation.
+### GET /api/products, GET /api/warehouses
+Read-only endpoints used by the catalog UI.
 
-Responses:
+See the inline OpenAPI-style examples in the code and the example curl snippets below.
 
-- `200 OK` if the reservation is confirmed
-- `410 Gone` if the reservation already expired
-- `404 Not Found` if the reservation does not exist
 
-Example:
-
-```bash
-curl -X POST http://localhost:3000/api/reservations/cmp123/confirm
-```
-
-### `POST /api/reservations/:id/release`
-
-Releases a reservation.
-
-This route is idempotent. Releasing an already released reservation returns the current released state without double-decrementing stock.
-
-Example:
+Example confirm request:
 
 ```bash
-curl -X POST http://localhost:3000/api/reservations/cmp123/release
+curl -X POST http://localhost:3000/api/reservations/<id>/confirm
 ```
 
-### `GET /api/reservations/cleanup`
 
-Runs the expiry cleanup job.
+## Tradeoffs
 
-### `POST /api/reservations/cleanup`
+- Single-warehouse reservations simplify correctness at the expense of allocation flexibility.
+- Prisma provides maintainable transactions but abstracts SQL — raw SQL can be used for micro-optimizations if needed.
+- The system favors clarity and reviewer aility over operational hardening (e.g., retries backoff, observability hooks, distributed tracing).
 
-Alias for the cleanup job, useful for manual triggering.
 
-## Tradeoffs Made
+## Future improvements
 
-- One warehouse per reservation was chosen to keep concurrency bounded to a single locked row.
-- The system uses lazy expiry plus cron cleanup instead of cron-only cleanup so stale holds are handled even if the scheduled job is delayed.
-- Prisma transactions are used for clarity and maintainability instead of raw SQL everywhere, with targeted `FOR UPDATE` queries where lock control matters.
-- The app is optimized for correctness and reviewer readability rather than maximizing allocation flexibility.
+- Add automated concurrency tests that use parallel clients to assert no oversell.
+- Add observability: metrics for cleanup runs, expired holds, and lock contention.
+- Consider multi-warehouse allocation with deterministic fallback and compensation.
+- Add CI steps that run migration against a test database and execute the concurrency test suite.
 
-## Future Improvements
 
-- Add integration tests for concurrent last-unit reservation behavior.
-- Add a reservation cancellation button in the catalog flow.
-- Add warehouse ranking or allocation logic for multi-warehouse fallback reservation.
-- Add operational dashboards for expired holds and cleanup frequency.
-- Move cleanup scheduling metrics into observability tooling.
+## Environment variables
 
-## Environment Variables
-
-Copy [\.env.example](.env.example) to `.env` and set:
+Copy `.env.example` to `.env` and set the typical values:
 
 ```bash
 DATABASE_URL="postgresql://user:password@host:5432/db?schema=public"
@@ -346,20 +267,33 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 
 Notes:
 
-- `DATABASE_URL` is used by the app runtime and local migration bootstrap.
-- `DIRECT_URL` is optional if you only have one working database URL.
-- The Supabase variables are optional unless you wire in the auth helpers.
+- `DATABASE_URL` is required for runtime and migrations.
+- `DIRECT_URL` can be used as an alternate connection string for admin operations.
+- Supabase vars are optional unless you enable the Supabase auth helpers.
 
-## Local Setup
+
+## Local setup
+
+1. Install dependencies:
 
 ```bash
 npm install
+```
+
+2. Prepare the database and seed demo data (local Postgres required):
+
+```bash
 npm run db:migrate
 npm run db:seed
+```
+
+3. Start the dev server:
+
+```bash
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Open http://localhost:3000.
 
 ## Seed Instructions
 
@@ -375,9 +309,10 @@ Run it with:
 npm run db:seed
 ```
 
-## Testing Instructions
 
-Run the repository checks with:
+## Checks (recommended before submission)
+
+Run the static checks and build:
 
 ```bash
 npm run lint
@@ -385,18 +320,31 @@ npm run typecheck
 npm run build
 ```
 
-Recommended manual verification flow:
+Manual verification (smoke test):
 
-1. Open the catalog page.
-2. Create a reservation.
-3. Confirm it.
-4. Create another reservation and release it.
-5. Verify the reservation detail page shows countdown and status updates.
-6. Verify expired reservations return `410 Gone` on confirm.
+1. Create a reservation from the catalog.
+2. Confirm it and observe inventory counters.
+3. Create a reservation and let it expire; attempt confirm and expect `410 Gone`.
+4. Trigger `/api/reservations/cleanup` and confirm expired holds are reclaimed.
 
-## Deployment Instructions
+## Deployment
 
-### Vercel
+This app deploys cleanly on Vercel but requires a Postgres database and migrations to be applied.
+
+Steps (Vercel):
+
+1. Create a Postgres database (Neon, Supabase, or Vercel Postgres).
+2. Add the environment variables in the Vercel Project settings: `DATABASE_URL`, `DIRECT_URL`, `RESERVATION_TTL_MINUTES` (and Supabase vars if used).
+3. Deploy the project.
+4. After deployment, run migrations against the production DB:
+
+```bash
+npm run db:migrate
+```
+
+5. (Optional) Seed demo data `npm run db:seed`.
+
+Ensure the Vercel Cron entry in `vercel.json` is enabled for periodic cleanup.
 
 1. Create a PostgreSQL database on Neon or Supabase.
 2. Set `DATABASE_URL`, `DIRECT_URL`, and `RESERVATION_TTL_MINUTES` in Vercel.
@@ -406,18 +354,12 @@ Recommended manual verification flow:
 6. Ensure the Vercel Cron entry from [vercel.json](vercel.json) remains enabled.
 7. If you want CI verification, run the `Concurrency Test` workflow in GitHub Actions; it provisions Postgres, migrates, seeds, and executes `npm run test:concurrency`.
 
-### Production migration workflow
-
-Use the repository migration script:
-
-```bash
-npm run db:migrate
-```
-
-This applies the checked-in Prisma migration SQL in a deterministic way against the configured PostgreSQL database.
-
 ## Notes
 
-- The UI is split into a catalog page and a reservation workspace page.
-- Payment processing is intentionally out of scope; confirmation simulates a successful payment flow.
-- The codebase is organized to make the concurrency story easy to review and explain.
+- UI: catalog + reservation workspace. The UI aims to be operational and reviewer-friendly rather than decorative.
+- Payment: out of scope — confirmation simulates success.
+- Focus: correctness under concurrency and clear reviewer experience.
+
+---
+
+If you want, I can also produce a short submission checklist and recommended commit staging message templates to go with this README.
