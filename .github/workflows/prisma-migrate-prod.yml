@@ -2,6 +2,15 @@ name: Apply Prisma migrations to production database
 
 on:
   workflow_dispatch:
+    inputs:
+      seed:
+        description: 'Run seed after migrations'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   apply-migrations:
@@ -31,7 +40,7 @@ jobs:
         run: npm run db:migrate
 
       - name: Run seed (optional)
-        if: ${{ github.event.inputs.seed == 'true' }}
+        if: ${{ inputs.seed == 'true' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
