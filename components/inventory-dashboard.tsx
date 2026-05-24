@@ -312,11 +312,11 @@ export function InventoryDashboard() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-right sm:grid-cols-1">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400">Price</p>
+                        <p className="text-sm font-semibold text-stone-600 dark:text-stone-400">Price</p>
                         <p className="mt-1 text-lg font-semibold tracking-tight">{formatMoney(product.price)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400">Warehouse rows</p>
+                        <p className="text-sm font-semibold text-stone-600 dark:text-stone-400">Warehouse rows</p>
                         <p className="mt-1 text-lg font-semibold tracking-tight">{product.inventory.length}</p>
                       </div>
                     </div>
@@ -347,17 +347,17 @@ export function InventoryDashboard() {
                             }
                             aria-pressed={isSelected}
                             className={cn(
-                              "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                              isSelected
-                                ? "border-stone-950 bg-stone-950 text-white shadow-sm dark:border-stone-50 dark:bg-stone-50 dark:text-stone-950"
-                                : "border-stone-200 bg-stone-50/80 hover:border-stone-400 hover:bg-white dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-stone-600 dark:hover:bg-stone-900"
-                            )}
+                                "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                                isSelected
+                                  ? "border-stone-900 bg-stone-900 text-white dark:border-stone-50 dark:bg-stone-50 dark:text-stone-950"
+                                  : "border-stone-100 bg-transparent hover:border-stone-200 hover:bg-white/60 dark:border-stone-800 dark:bg-transparent dark:hover:border-stone-700",
+                              )}
                           >
                             <span className="min-w-0 space-y-0.5">
                               <span className="block font-medium">{inventory.warehouse.name}</span>
                               <span className="block text-xs text-current/60">{inventory.warehouse.location}</span>
                             </span>
-                            <span className="flex items-center gap-2 text-xs font-medium tabular-nums">
+                            <span className="flex items-center gap-2 text-sm font-semibold tabular-nums">
                               <span>{formatStock(inventory.availableQuantity, inventory.totalQuantity)}</span>
                               {isZero ? (
                                 <Badge className="border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">Out</Badge>
@@ -466,7 +466,7 @@ export function InventoryDashboard() {
                     </div>
 
                     {createReservationMutation.error && activeProductId === product.id ? (
-                      <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-100">
+                      <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-100">
                         {createReservationMutation.error instanceof ApiClientError
                           ? createReservationMutation.error.message
                           : "Failed to create reservation."}
@@ -500,19 +500,21 @@ export function InventoryDashboard() {
             ) : reservationsFeed.data?.reservations.length ? (
               <div className="space-y-2">
                 {reservationsFeed.data.reservations.map((reservation) => (
-                  <div key={reservation.id} className="flex items-start justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-                    <div className="min-w-0 space-y-1">
+                  <div key={reservation.id} className="flex items-start justify-between gap-3 rounded-md border border-stone-100 px-3 py-1.5 dark:border-stone-800">
+                    <div className="min-w-0 space-y-0.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-stone-950 dark:text-stone-50">{reservation.inventory.product.name}</p>
-                        <Badge className={cn("border", getReservationTone(reservation.lifecycleState) === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200" : getReservationTone(reservation.lifecycleState) === "danger" ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200" : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200")}>{reservation.lifecycleState}</Badge>
+                        <p className="text-sm font-medium text-stone-900 dark:text-stone-50">{reservation.inventory.product.name}</p>
+                        <Badge className={cn(getReservationTone(reservation.lifecycleState) === "success" ? "bg-emerald-100 text-emerald-800" : getReservationTone(reservation.lifecycleState) === "danger" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800")}>
+                          {reservation.lifecycleState}
+                        </Badge>
                       </div>
-                      <p className="text-xs text-stone-500 dark:text-stone-400">
+                      <p className="text-sm text-stone-600 dark:text-stone-400">
                         {reservation.inventory.warehouse.name} · {reservation.quantity} unit{reservation.quantity > 1 ? "s" : ""} · {formatTimestamp(reservation.updatedAt)}
                       </p>
                     </div>
-                    <div className="text-right text-xs text-stone-500 dark:text-stone-400">
-                      <p>{formatSku(reservation.id)}</p>
-                      <p>{reservation.status === "CONFIRMED" ? "Confirmed purchase" : reservation.status === "RELEASED" ? "Released hold" : reservation.lifecycleState === "EXPIRED" ? "Expired hold" : "Active hold"}</p>
+                    <div className="text-right text-sm text-stone-600 dark:text-stone-400">
+                      <p className="font-mono text-xs">{formatSku(reservation.id)}</p>
+                      <p className="mt-0.5">{reservation.status === "CONFIRMED" ? "Confirmed" : reservation.status === "RELEASED" ? "Released" : reservation.lifecycleState === "EXPIRED" ? "Expired" : "Pending"}</p>
                     </div>
                   </div>
                 ))}

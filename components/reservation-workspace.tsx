@@ -223,16 +223,16 @@ export function ReservationWorkspace({ reservationId }: { reservationId: string 
               <StateBlock label="Available" value={reservation.inventory.availableQuantity.toString()} tone="success" compact />
             </div>
             <div className="mt-4 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-              <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-stone-500 dark:text-stone-400">
-                <span>Lifecycle progress</span>
-                <span>{progressPercent}%</span>
-              </div>
+                  <div className="flex items-center justify-between gap-3 text-sm text-stone-600 dark:text-stone-400">
+                    <span className="font-medium">Lifecycle progress</span>
+                    <span className="font-medium">{progressPercent}%</span>
+                  </div>
               <div className="h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
                 <div className={cn("h-full rounded-full", isExpired ? "bg-rose-500" : reservation.status === "CONFIRMED" ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${progressPercent}%` }} />
               </div>
-              <p className="text-xs leading-5 text-stone-600 dark:text-stone-300">
-                Created {formatTimestamp(reservation.createdAt)} · Expires {formatTimestamp(reservation.expiresAt)}
-              </p>
+                  <p className="text-sm leading-5 text-stone-600 dark:text-stone-300">
+                    Created {formatTimestamp(reservation.createdAt)} · Expires {formatTimestamp(reservation.expiresAt)}
+                  </p>
             </div>
           </CardContent>
         </Card>
@@ -257,7 +257,7 @@ export function ReservationWorkspace({ reservationId }: { reservationId: string 
             </CardHeader>
             <CardContent>
               <div className={cn("rounded-xl border px-4 py-4", isExpired ? "border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/30" : "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30")}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400">Time remaining</p>
+                <p className="text-sm font-semibold text-stone-600 dark:text-stone-400">Time remaining</p>
                 <div className={cn("mt-2 text-4xl font-semibold tracking-tight tabular-nums", isExpired ? "text-rose-700 dark:text-rose-200" : "text-emerald-700 dark:text-emerald-200")}>
                   {isExpired ? "00:00" : formatRemaining(remainingMs)}
                 </div>
@@ -357,8 +357,8 @@ function StateBlock({
   } as const;
 
   return (
-    <div className={cn("rounded-lg border px-3 py-2", toneClasses[tone], compact ? "min-h-16" : "min-h-20")}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-current/60">{label}</p>
+    <div className={cn("rounded-md border px-3 py-2", toneClasses[tone], compact ? "min-h-14" : "min-h-18")}>
+      <p className="text-sm font-semibold text-current/70">{label}</p>
       <p className={cn("mt-1 font-medium leading-5", compact ? "text-sm" : "text-base")}>{value}</p>
     </div>
   );
@@ -389,7 +389,7 @@ function TimelineRow({
       <div className={cn("flex-1 rounded-lg border px-3 py-2", toneClasses[step.tone])}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold">{step.label}</p>
-          <Badge className="border-current/20 bg-current/10 text-[10px] uppercase tracking-[0.18em] text-current">{step.timestamp}</Badge>
+          <Badge className="text-xs bg-transparent px-2 py-0.5 text-current/75">{step.timestamp}</Badge>
         </div>
         <p className="mt-1 text-sm leading-6 text-current/80">{step.description}</p>
         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-current/65">{step.detail}</p>
