@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { ApiClientError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import styles from "./reservation-workspace.module.css";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,15 @@ export function ReservationWorkspace({ reservationId }: { reservationId: string 
   const totalLifetimeMs = Math.max(1, expiresAtMs - createdAtMs);
   const elapsedLifetimeMs = Math.min(totalLifetimeMs, Math.max(0, now - createdAtMs));
   const progressPercent = Math.min(100, Math.max(0, Math.round((elapsedLifetimeMs / totalLifetimeMs) * 100)));
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = progressBarRef.current;
+    if (!el) return;
+
+    // Set width imperatively to avoid inline JSX styles while keeping exact percentage.
+    el.style.width = `${progressPercent}%`;
+  }, [progressPercent]);
   const isExpiredByTimer = remainingMs <= 0;
   const isExpired = Boolean(reservation && (reservation.lifecycleState === "EXPIRED" || isExpiredByTimer));
   const isActionPending = confirmMutation.isPending || releaseMutation.isPending;
@@ -227,8 +237,19 @@ export function ReservationWorkspace({ reservationId }: { reservationId: string 
                     <span className="font-medium">Lifecycle progress</span>
                     <span className="font-medium">{progressPercent}%</span>
                   </div>
-              <div className="h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
-                <div className={cn("h-full rounded-full", isExpired ? "bg-rose-500" : reservation.status === "CONFIRMED" ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${progressPercent}%` }} />
+              <div className={cn("h-2 overflow-hidden rounded-full", styles.progressTrack, "dark:bg-stone-800 bg-stone-200")}>
+                <div
+                  ref={progressBarRef}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPercent}
+                  className={cn(
+                    "h-full rounded-full",
+                    styles.progressBar,
+                    isExpired ? "bg-rose-500" : reservation.status === "CONFIRMED" ? "bg-emerald-500" : "bg-amber-500"
+                  )}
+                />
               </div>
                   <p className="text-sm leading-5 text-stone-600 dark:text-stone-300">
                     Created {formatTimestamp(reservation.createdAt)} · Expires {formatTimestamp(reservation.expiresAt)}
