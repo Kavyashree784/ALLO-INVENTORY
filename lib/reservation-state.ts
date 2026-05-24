@@ -13,7 +13,3 @@ export function getReservationLifecycleState(
 
   return status;
 }
-
-export function isReservationExpired(status: ReservationStatus, expiresAt: Date, now = new Date()) {
-  return status === "PENDING" && expiresAt.getTime() <= now.getTime();
-}

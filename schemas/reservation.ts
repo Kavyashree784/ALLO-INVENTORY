@@ -7,7 +7,3 @@ export const createReservationInputSchema = z.object({
 });
 
 export type CreateReservationInput = z.infer<typeof createReservationInputSchema>;
-
-export const reservationIdParamSchema = z.object({
-  id: z.string().min(1),
-});
