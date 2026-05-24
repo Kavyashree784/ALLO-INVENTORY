@@ -12,6 +12,8 @@
     "db:migrate": "tsx prisma/apply-migration.ts",
     "db:seed": "prisma db seed",
     "test:concurrency": "node scripts/concurrency-test.mjs",
+    "test:expired-confirm": "node scripts/verify-expired-confirm.mjs",
+    "test:cleanup-idempotency": "node scripts/verify-cleanup-idempotency.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

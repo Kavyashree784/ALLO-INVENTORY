@@ -334,7 +334,7 @@ This app deploys cleanly on Vercel but requires a Postgres database and migratio
 Steps (Vercel):
 
 1. Create a Postgres database (Neon, Supabase, or Vercel Postgres).
-2. Add the environment variables in the Vercel Project settings: `DATABASE_URL`, `DIRECT_URL`, `RESERVATION_TTL_MINUTES` (and Supabase vars if used).
+2. Add the environment variables in the Vercel Project settings: `DATABASE_URL`, `DIRECT_URL`, `RESERVATION_TTL_MINUTES`, and `NEXT_PUBLIC_APP_URL`.
 3. Deploy the project.
 4. After deployment, run migrations against the production DB:
 
@@ -343,16 +343,22 @@ npm run db:migrate
 ```
 
 5. (Optional) Seed demo data `npm run db:seed`.
+6. Run production verification checks:
 
-Ensure the Vercel Cron entry in `vercel.json` is enabled for periodic cleanup.
+```bash
+BASE_URL="https://<your-app>.vercel.app" npm run test:concurrency
+BASE_URL="https://<your-app>.vercel.app" npm run test:expired-confirm
+BASE_URL="https://<your-app>.vercel.app" npm run test:cleanup-idempotency
+```
 
-1. Create a PostgreSQL database on Neon or Supabase.
-2. Set `DATABASE_URL`, `DIRECT_URL`, and `RESERVATION_TTL_MINUTES` in Vercel.
-3. Deploy the app.
-4. Run `npm run db:migrate` against production.
-5. Run `npm run db:seed` if you want the demo data in production.
-6. Ensure the Vercel Cron entry from [vercel.json](vercel.json) remains enabled.
-7. If you want CI verification, run the `Concurrency Test` workflow in GitHub Actions; it provisions Postgres, migrates, seeds, and executes `npm run test:concurrency`.
+7. Ensure the Vercel Cron entry in `vercel.json` is enabled for periodic cleanup.
+
+Supabase note:
+- Use pooled connection for `DATABASE_URL` (pooler host/6543).
+- Use direct connection for `DIRECT_URL` (db.<project-ref>.supabase.co:5432).
+
+Vercel Hobby note:
+- Cron jobs are limited to once per day. The default schedule in `vercel.json` is `0 0 * * *`.
 
 ## Notes
 
