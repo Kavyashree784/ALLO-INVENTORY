@@ -2,7 +2,7 @@
 
 Allo Inventory is a concurrency-safe inventory reservation system for multi-warehouse retail. It demonstrates how to prevent overselling under heavy concurrent checkout traffic using PostgreSQL row locks, transactional state transitions, and idempotent reservation creation.
 
-The application is built with Next.js App Router, Prisma, PostgreSQL, TanStack Query, Zod, Tailwind CSS, and shadcn-style primitives.
+The application is built with Next.js App Router, Prisma, PostgreSQL, TanStack Query, Zod, Tailwind CSS, and shadcn-style primitives. 
 
 ## Project Overview
 
@@ -420,4 +420,5 @@ This applies the checked-in Prisma migration SQL in a deterministic way against 
 
 - The UI is split into a catalog page and a reservation workspace page.
 - Payment processing is intentionally out of scope; confirmation simulates a successful payment flow.
-- The codebase is organized to make the concurrency story easy to review and explain.
+- The codebase is organized to make the concurrency story easy to review and explain. 
+
