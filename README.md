@@ -72,13 +72,20 @@ Why this shape?
 
 ```mermaid
 flowchart LR
-  UI[Next.js UI] -->|React Query| API[App Router API]
-  API --> SVC[Reservation Service]
-  SVC --> TX[Prisma Transaction]
-  TX --> LOCK[SELECT ... FOR UPDATE on inventory row]
-  TX --> DB[(PostgreSQL)]
-  CRON[Vercel Cron] --> API2[/api/reservations/cleanup]
-  API2 --> SVC
+    USER["User"] --> UI["Next.js Frontend"]
+
+    UI -->|"REST API"| API["Next.js API Routes"]
+
+    API --> SERVICE["Reservation Service"]
+
+    SERVICE --> TX["Prisma Transaction"]
+
+    TX --> LOCK["Row-Level Lock<br/>(SELECT FOR UPDATE)"]
+
+    LOCK --> DB[("PostgreSQL")]
+
+    CRON["Vercel Cron"] --> CLEANUP["Reservation Cleanup Job"]
+    CLEANUP --> API
 ```
 
 ## Database Schema Overview
