@@ -72,10 +72,6 @@ export type CatalogResponse = {
   warehouses: WarehouseDTO[];
 };
 
-export type WarehousesResponse = {
-  warehouses: WarehouseDTO[];
-};
-
 export type ReservationResponse = ReservationDTO;
 
 export type ReservationFeedResponse = {

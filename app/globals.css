@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 /* stylelint-disable at-rule-no-unknown, unknownAtRules */
 @custom-variant dark (&:is(.dark *));

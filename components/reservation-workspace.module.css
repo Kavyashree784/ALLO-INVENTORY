@@ -1,0 +1,40 @@
+/* Styles for the reservation workspace progress bar and small layout tweaks.
+   Kept intentionally minimal and operational — no flashy effects. */
+
+.lifecycleContainer {
+  margin-top: 0.5rem; /* mt-2 */
+  padding: 0.75rem; /* p-3 */
+  border-radius: 0.5rem; /* rounded-lg */
+  border: 1px solid var(--tw-border-opacity, 1);
+  background-color: var(--bg-layer, transparent);
+}
+
+.progressTrack {
+  height: 0.5rem; /* h-2 */
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: var(--track-bg, #e6e6e6);
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 280ms linear;
+  width: 0%; /* default, will be set imperatively */
+}
+
+.progressLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem; /* text-sm */
+  color: var(--muted-text, #4b5563);
+}
+
+.timestamps {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted-text, #4b5563);
+}
