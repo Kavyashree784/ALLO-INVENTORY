@@ -1,8 +1,48 @@
+# 🚀 Allo Inventory
+
+> **A concurrency-safe inventory reservation system** for multi-warehouse retail, designed to prevent overselling using **PostgreSQL row-level locking, ACID transactions, idempotent APIs, and automatic reservation expiry**.
+
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+## Overview
+
+This project demonstrates how production inventory systems safely reserve stock under concurrent requests. The focus is correctness, consistency, concurrency control, and clean backend engineering.
+
+## Key Features
+
+- Concurrency-safe inventory reservation
+- PostgreSQL row-level locking (`SELECT ... FOR UPDATE`)
+- ACID database transactions
+- Idempotent reservation creation
+- Automatic reservation expiry & cleanup
+- Multi-warehouse inventory model
+- Next.js App Router + Prisma + PostgreSQL
+
+## Tech Stack
+
+| Layer | Technology |
+|--------|------------|
+| Frontend | Next.js (App Router), React |
+| Backend | Next.js API Routes |
+| Language | TypeScript |
+| ORM | Prisma |
+| Database | PostgreSQL |
+| Validation | Zod |
+| State | TanStack Query |
+| Styling | Tailwind CSS + shadcn/ui |
+| Deployment | Vercel |
+
+---
+
 # Allo Inventory
 
 Allo Inventory is a focused demo of concurrency-safe inventory reservation for multi-warehouse retail. It is intentionally small and engineered to demonstrate practical techniques that prevent overselling under concurrent traffic: targeted row locking, atomic transactions, clear lifecycle transitions, and idempotent client behavior.
 
-The application is built with Next.js App Router, Prisma, PostgreSQL, TanStack Query, Zod, Tailwind CSS, and shadcn-style primitives.
+Tech stack: Next.js (App Router), TypeScript, Prisma, PostgreSQL, TanStack Query (React Query), Zod, Tailwind CSS, and shadcn-style UI primitives.
 
 ## Project overview
 
@@ -242,7 +282,7 @@ curl -X POST http://localhost:3000/api/reservations/<id>/confirm
 
 - Single-warehouse reservations simplify correctness at the expense of allocation flexibility.
 - Prisma provides maintainable transactions but abstracts SQL — raw SQL can be used for micro-optimizations if needed.
-- The system favors clarity and reviewer aility over operational hardening (e.g., retries backoff, observability hooks, distributed tracing).
+- The system favors clarity and reviewer readability over operational hardening (e.g., retries backoff, observability hooks, distributed tracing).
 
 
 ## Future improvements
@@ -362,6 +402,22 @@ Vercel Hobby note:
 
 ## Notes
 
-- The UI is split into a catalog page and a reservation workspace page.
-- Payment processing is intentionally out of scope; confirmation simulates a successful payment flow.
-- The codebase is organized to make the concurrency story easy to review and explain.
+- UI: catalog + reservation workspace. The UI aims to be operational and reviewer-friendly rather than decorative.
+- Payment: out of scope — confirmation simulates success.
+- Focus: correctness under concurrency and clear reviewer experience.
+
+---
+
+If you want, I can also produce a short submission checklist and recommended commit staging message templates to go with this README.
+
+---
+
+## Author
+
+**Kavyashree K**
+
+M.Tech Integrated Software Engineering, VIT Vellore
+
+Backend Engineering • Distributed Systems • PostgreSQL • Node.js • Spring Boot
+
+If you found this project useful, consider giving it a ⭐.
